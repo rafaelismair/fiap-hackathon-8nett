@@ -1,0 +1,85 @@
+## =========================
+## .NET / Visual Studio
+## =========================
+bin/
+obj/
+[Bb]in/
+[Oo]bj/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Rider / VSCode
+.idea/
+.vscode/
+
+## =========================
+## Build & Publish
+## =========================
+artifacts/
+publish/
+*.pdb
+*.cache
+
+## =========================
+## Logs
+## =========================
+*.log
+logs/
+Logs/
+
+## =========================
+## Test results
+## =========================
+TestResults/
+coverage/
+*.trx
+
+## =========================
+## Entity Framework
+## =========================
+Migrations/**/bin/
+Migrations/**/obj/
+
+## =========================
+## Secrets / Config
+## =========================
+appsettings.Development.json
+appsettings.Local.json
+secrets.json
+*.env
+.env.*
+
+## =========================
+## Docker
+## =========================
+docker-compose.override.yml
+**/Dockerfile.debug
+**/*.dockerfile
+
+## =========================
+## OS
+## =========================
+.DS_Store
+Thumbs.db
+
+## =========================
+## NuGet
+## =========================
+*.nupkg
+.nuget/
+packages/
+
+## =========================
+## Rider / ReSharper
+## =========================
+_ReSharper*/
+*.DotSettings.user
+
+## =========================
+## EF Core local db
+## =========================
+*.db
+*.sqlite

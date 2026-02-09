@@ -1,0 +1,32 @@
+services:
+  kafka:
+    image: apache/kafka:3.7.2
+    container_name: agro-kafka
+    ports:
+      - "9092:9092"
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: agro-kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+    depends_on:
+      - kafka
+
+  postgres:
+    image: postgres:16
+    container_name: agro-postgres
+    environment:
+      POSTGRES_DB: agro
+      POSTGRES_USER: agro
+      POSTGRES_PASSWORD: agro
+    ports:
+      - "5432:5432"
+    volumes:
+      - agro_pgdata:/var/lib/postgresql/data
+
+volumes:
+  agro_pgdata:
