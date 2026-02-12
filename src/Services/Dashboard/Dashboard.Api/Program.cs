@@ -15,6 +15,13 @@ builder.Services.AddSingleton<IAlertsRepository, AlertsRepository>();
 // Consumer do tópico (persistindo)
 builder.Services.AddHostedService<AlertsConsumerHostedService>();
 
+builder.Services.AddOptions<InfluxOptions>()
+    .Bind(builder.Configuration.GetSection(InfluxOptions.SectionName))
+    .Validate(o => !string.IsNullOrWhiteSpace(o.Url), "Influx:Url é obrigatório.");
+
+builder.Services.AddSingleton<IInfluxReader, InfluxReader>();
+
+
 var app = builder.Build();
 
 app.UseSwagger();
@@ -22,6 +29,40 @@ app.UseSwaggerUI();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
    .WithName("Health");
+
+app.MapGet("/v1/plots/{plotId}/metrics/{metric}", async (
+    string plotId,
+    string metric,
+    string? from,
+    string? to,
+    int? limit,
+    IInfluxReader influx,
+    CancellationToken ct) =>
+{
+    // defaults: últimas 24h
+    var toUtc = string.IsNullOrWhiteSpace(to)
+        ? DateTimeOffset.UtcNow
+        : DateTimeOffset.Parse(to);
+
+    var fromUtc = string.IsNullOrWhiteSpace(from)
+        ? toUtc.AddHours(-24)
+        : DateTimeOffset.Parse(from);
+
+    var lim = Math.Clamp(limit ?? 500, 1, 5000);
+
+    var points = await influx.QueryMetricAsync(plotId, metric, fromUtc, toUtc, lim, ct);
+    return Results.Ok(new
+    {
+        plotId,
+        metric,
+        fromUtc,
+        toUtc,
+        count = points.Count,
+        points
+    });
+})
+.WithName("GetMetricSeries");
+
 
 app.MapGet("/v1/alerts", async (IAlertsRepository repo, int? take, CancellationToken ct) =>
 {

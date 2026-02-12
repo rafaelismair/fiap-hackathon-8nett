@@ -1,16 +1,24 @@
 using Agro.Messaging.Contracts;
 using Agro.Messaging.Kafka;
+using Ingestion.Api;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Swagger / OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Kafka Producer
 builder.Services.AddKafkaProducer(builder.Configuration);
+
+builder.Services.AddOptions<InfluxOptions>()
+    .Bind(builder.Configuration.GetSection(InfluxOptions.SectionName))
+    .Validate(o => !string.IsNullOrWhiteSpace(o.Url), "Influx:Url é obrigatório");
+
+builder.Services.AddSingleton(sp =>
+    sp.GetRequiredService<IOptions<InfluxOptions>>().Value);
+
+builder.Services.AddSingleton<IInfluxWriter, InfluxWriter>();
 
 var app = builder.Build();
 
@@ -23,6 +31,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }))
 app.MapPost("/v1/readings", async (
     [FromBody] SensorReadingV1 reading,
     IEventProducer producer,
+    IInfluxWriter influx,
     IOptions<KafkaOptions> kafkaOptions,
     CancellationToken ct) =>
 {
@@ -38,9 +47,20 @@ app.MapPost("/v1/readings", async (
     var topic = kafkaOptions.Value.Topics.SensorReadings;
     var key = reading.PlotId;
 
+    // 1) Publica no Kafka
     await producer.ProduceAsync(topic, key, reading, ct);
 
-    // FIX do Results.Accepted: ele aceita (string? uri, object? value)
+    // 2) Persiste no InfluxDB (time-series)
+    await influx.WriteReadingAsync(
+        propertyId: reading.PropertyId,
+        plotId: reading.PlotId,
+        sensorId: reading.SensorId,
+        metric: reading.Metric,
+        value: Convert.ToDouble(reading.Value),
+        unit: reading.Unit,
+        timestampUtc: reading.TimestampUtc,
+        ct: ct);
+
     return Results.Accepted(value: new
     {
         topic,
