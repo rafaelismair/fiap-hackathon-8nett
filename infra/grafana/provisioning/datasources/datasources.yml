@@ -1,0 +1,28 @@
+apiVersion: 1
+
+datasources:
+  - name: InfluxDB
+    type: influxdb
+    access: proxy
+    url: http://influxdb:8086
+    isDefault: true
+    jsonData:
+      version: Flux
+      organization: agro
+      defaultBucket: readings
+      tlsSkipVerify: true
+    secureJsonData:
+      token: agro_token_local_123
+
+  - name: Postgres
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    user: agro
+    secureJsonData:
+      password: agro
+    jsonData:
+      database: agro
+      sslmode: disable
+      postgresVersion: 1600
+      timescaledb: false

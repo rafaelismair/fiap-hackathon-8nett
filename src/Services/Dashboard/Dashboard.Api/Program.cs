@@ -12,6 +12,8 @@ builder.Services.AddOptions<KafkaOptions>()
 // Repo Postgres
 builder.Services.AddSingleton<IAlertsRepository, AlertsRepository>();
 
+builder.Services.AddSingleton<IAlertsQueries, AlertsQueries>();
+
 // Consumer do tópico (persistindo)
 builder.Services.AddHostedService<AlertsConsumerHostedService>();
 
@@ -64,13 +66,6 @@ app.MapGet("/v1/plots/{plotId}/metrics/{metric}", async (
 .WithName("GetMetricSeries");
 
 
-app.MapGet("/v1/alerts", async (IAlertsRepository repo, int? take, CancellationToken ct) =>
-{
-    var t = Math.Clamp(take ?? 50, 1, 500);
-    var list = await repo.GetAllAsync(t, ct);
-    return Results.Ok(list);
-})
-.WithName("ListAlerts");
 
 app.MapGet("/v1/alerts/{plotId}", async (IAlertsRepository repo, string plotId, int? take, CancellationToken ct) =>
 {
@@ -79,5 +74,52 @@ app.MapGet("/v1/alerts/{plotId}", async (IAlertsRepository repo, string plotId, 
     return Results.Ok(list);
 })
 .WithName("ListAlertsByPlot");
+
+app.MapGet("/v1/alerts", async (int? take, IAlertsQueries q, CancellationToken ct) =>
+{
+    var t = Math.Clamp(take ?? 200, 1, 2000);
+    var rows = await q.GetLatestAsync(t, ct);
+    return Results.Ok(new { count = rows.Count, items = rows });
+})
+.WithName("GetAlerts");
+
+app.MapGet("/v1/alerts/summary", async (int? minutes, IAlertsQueries q, CancellationToken ct) =>
+{
+    var m = Math.Clamp(minutes ?? 60, 1, 24 * 60);
+    var rows = await q.GetSummaryLastMinutesAsync(m, ct);
+
+    // formato amigável pro front: plot -> severities -> count
+    var grouped = rows
+        .GroupBy(x => x.PlotId)
+        .ToDictionary(
+            g => g.Key,
+            g => g.ToDictionary(x => x.Severity, x => x.Count)
+        );
+
+    return Results.Ok(new { minutes = m, plots = grouped });
+})
+.WithName("GetAlertsSummary");
+
+app.MapGet("/v1/plots/{plotId}/metrics/{metric}/agg", async (
+    string plotId,
+    string metric,
+    string? window,
+    int? hours,
+    int? limit,
+    IInfluxReader influx,
+    CancellationToken ct) =>
+{
+    var w = string.IsNullOrWhiteSpace(window) ? "5m" : window;
+    var h = Math.Clamp(hours ?? 24, 1, 24 * 30);
+    var lim = Math.Clamp(limit ?? 5000, 1, 20000);
+
+    var toUtc = DateTimeOffset.UtcNow;
+    var fromUtc = toUtc.AddHours(-h);
+
+    var points = await influx.QueryMetricAggAsync(plotId, metric, fromUtc, toUtc, w, lim, ct);
+    return Results.Ok(new { plotId, metric, window = w, fromUtc, toUtc, count = points.Count, points });
+})
+.WithName("GetMetricAgg");
+
 
 app.Run();
