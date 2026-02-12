@@ -68,7 +68,24 @@ services:
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: agro_token_local_123
     volumes:
       - agro_influx:/var/lib/influxdb2
-      
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: agro-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - agro_grafana:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - influxdb
+      - postgres
+
 volumes:
   agro_influx:
   agro_pgdata:
+  agro_grafana:
