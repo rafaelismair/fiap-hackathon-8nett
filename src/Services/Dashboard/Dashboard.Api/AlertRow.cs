@@ -8,5 +8,6 @@ public sealed class AlertRow
     public string Rule { get; set; } = default!;
     public string Severity { get; set; } = default!;
     public string Message { get; set; } = default!;
-    public DateTimeOffset CreatedAtUtc { get; set; } // TIMESTAMPTZ -> DateTimeOffset
+    public DateTimeOffset CreatedAtUtc { get; set; } 
 }
+ 
